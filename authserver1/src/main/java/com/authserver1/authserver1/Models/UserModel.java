@@ -1,6 +1,8 @@
 package com.authserver1.authserver1.Models;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 
 
@@ -10,9 +12,13 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
@@ -37,6 +43,14 @@ public class UserModel implements UserDetails {
     @Column(nullable = false,name = "senha")
     private String senha;
 
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+        name = "usuario_role",
+        joinColumns = @JoinColumn(name = "usuario"),
+        inverseJoinColumns = @JoinColumn(name = "role")
+    )
+    List<RoleModel> roles = new ArrayList<RoleModel>();
+
     
 
     public UserModel( String nome,  String senha) {
@@ -47,10 +61,14 @@ public class UserModel implements UserDetails {
 
     }
 
+    public void addRole(RoleModel role){
+        roles.add(role);
+    }
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         // TODO Auto-generated method stub
-        return null;
+        return roles;
     }
 
     @Override

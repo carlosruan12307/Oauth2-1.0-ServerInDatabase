@@ -1,9 +1,11 @@
 package com.authserver1.authserver1;
 
 import java.time.Duration;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
-import org.apache.catalina.User;
+
 import org.ietf.jgss.Oid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -12,6 +14,9 @@ import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
@@ -32,9 +37,13 @@ import org.springframework.security.oauth2.server.authorization.config.annotatio
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
 import org.springframework.security.oauth2.server.authorization.settings.ClientSettings;
 import org.springframework.security.oauth2.server.authorization.settings.TokenSettings;
+import org.springframework.security.oauth2.server.authorization.token.JwtEncodingContext;
+import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer;
 import org.springframework.security.web.SecurityFilterChain;
 
+import com.authserver1.authserver1.Models.RoleModel;
 import com.authserver1.authserver1.Models.UserModel;
+import com.authserver1.authserver1.Repository.UserRepository;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -95,6 +104,23 @@ public class AuthServerConfig {
         clientRepository.save(userclient);
         return clientRepository;
     }
+    @Bean
+    public OAuth2TokenCustomizer<JwtEncodingContext> jCustomizer(UserRepository userRepository){
+        return (context ->  {
+Authentication authentication = context.getPrincipal();
+final User user = (User) authentication.getPrincipal();
+if(authentication.getPrincipal() instanceof User){
+    final UserModel userModel = userRepository.findBynome(user.getUsername()).orElseThrow();
+
+    Set<String> teste = new HashSet<>();
+   for (GrantedAuthority authorities : userModel.getAuthorities()) {
+    teste.add(authorities.getAuthority());
+   }
+
+   context.getClaims().claim("user_roles", teste);
+}
+        });
+    }
 
     @Bean
     public OAuth2AuthorizationService auth2AuthorizationService(JdbcOperations jdbcOperations,
@@ -116,7 +142,7 @@ public class AuthServerConfig {
     static class RowMapper extends JdbcOAuth2AuthorizationService.OAuth2AuthorizationRowMapper {
         RowMapper(RegisteredClientRepository registeredClientRepository) {
             super(registeredClientRepository);
-            getObjectMapper().addMixIn(UserModel.class, MemberMixin.class);
+            getObjectMapper().addMixIn(RoleModel.class, MemberMixin.class);
         }
     }
 
@@ -126,8 +152,7 @@ public class AuthServerConfig {
     static class MemberMixin {
 
         @JsonCreator
-        public MemberMixin(@JsonProperty("id") UUID id, @JsonProperty("nome") String nome,
-                @JsonProperty("senha") String senha) {
+        public MemberMixin(@JsonProperty("id") UUID id, @JsonProperty("nome") String nome) {
         }
 
     }
